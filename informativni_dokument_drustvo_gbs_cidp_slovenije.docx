@@ -1,0 +1,159 @@
+
+const siteNews = [
+  {
+    title: 'Društvo je v fazi ustanavljanja',
+    date: 'April 2026',
+    tag: 'Organizacija',
+    summary: 'Pripravljeni so statut, ustanovitveni dokumenti, informativna gradiva in osnovna spletna stran društva. Po registraciji sledijo uradni podatki, članarina in prvi dogodki.',
+    link: 'dokumenti/Statut_Drustvo_GBS_in_CIDP_Slovenije_dopolnjen.docx',
+    linkLabel: 'Odpri statut'
+  },
+  {
+    title: 'Zbiranje interesa za podporno skupino',
+    date: 'V pripravi',
+    tag: 'Skupnost',
+    summary: 'Društvo zbira interes za redna srečanja bolnikov in svojcev v živo ali na daljavo. Namen je medsebojna podpora, izmenjava izkušenj in lažje razumevanje poti okrevanja.',
+    link: 'clanstvo.html',
+    linkLabel: 'Pošlji interes'
+  },
+  {
+    title: 'Sodelovanje z ustanovami in stroko',
+    date: 'V pripravi',
+    tag: 'Sodelovanje',
+    summary: 'Društvo želi sodelovati z nevrološkimi, rehabilitacijskimi, socialnimi in drugimi ustanovami pri informiranju, podpori in ozaveščanju.',
+    link: 'podprite.html',
+    linkLabel: 'Predlagaj sodelovanje'
+  }
+];
+
+const siteEvents = [
+  {
+    title: 'Informativno online srečanje za bolnike in svojce',
+    date: 'Datum po registraciji',
+    place: 'Na daljavo',
+    tag: 'Srečanje',
+    summary: 'Kratka predstavitev društva, osnovne informacije o delovanju in prostor za vprašanja bolnikov, svojcev in podpornikov.',
+    link: 'mailto:gbs.cidp.skupnost@gmail.com?subject=Interes%20za%20online%20sre%C4%8Danje',
+    linkLabel: 'Prijavi interes'
+  },
+  {
+    title: 'Prvo srečanje članov in podpornikov',
+    date: 'Datum po registraciji',
+    place: 'Ljubljana ali druga dogovorjena lokacija',
+    tag: 'Skupnost',
+    summary: 'Srečanje za spoznavanje članov, pregled načrtovanih aktivnosti, zbiranje pobud in oblikovanje prioritet društva.',
+    link: 'clanstvo.html',
+    linkLabel: 'Več o članstvu'
+  },
+  {
+    title: 'Pohod ali rekreativni dogodek društva',
+    date: 'Kasneje v sezoni',
+    place: 'Po dogovoru',
+    tag: 'Dogodek',
+    summary: 'Rekreativna in povezovalna aktivnost za člane, svojce in širšo javnost, prilagojena zmožnostim udeležencev.',
+    link: 'podprite.html',
+    linkLabel: 'Ponudi pomoč pri dogodku'
+  }
+];
+
+function renderCards(targetId, items, type, limit) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  const data = typeof limit === 'number' ? items.slice(0, limit) : items;
+  el.innerHTML = data.map(item => {
+    const meta = type === 'event'
+      ? `<div class="meta">${item.date} · ${item.place}</div>`
+      : `<div class="meta">${item.date}</div>`;
+    const tag = item.tag ? `<span class="pill">${item.tag}</span>` : '';
+    return `
+      <article class="card ${type === 'event' ? 'event-card' : 'news-card'}">
+        ${tag}
+        <h3>${item.title}</h3>
+        ${meta}
+        <p>${item.summary}</p>
+        ${item.link ? `<a class="text-link" href="${item.link}">${item.linkLabel || 'Preberi več'}</a>` : ''}
+      </article>
+    `;
+  }).join('');
+}
+
+function handleMailForms() {
+  document.querySelectorAll('.mail-form').forEach(form => {
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+      const type = form.dataset.formType;
+      let subject = 'Sporočilo preko spletne strani';
+      let body = 'Pozdravljeni,
+
+';
+
+      if (type === 'membership') {
+        subject = 'Interes za članstvo v Društvu GBS in CIDP Slovenije';
+        body += `Ime in priimek: ${formData.get('name') || ''}
+`;
+        body += `E-pošta: ${formData.get('email') || ''}
+`;
+        body += `Telefon: ${formData.get('phone') || ''}
+`;
+        body += `Vrsta članstva: ${formData.get('membershipType') || ''}
+
+`;
+        body += `Opomba:
+${formData.get('message') || ''}
+`;
+      } else if (type === 'support') {
+        subject = 'Interes za podporo Društvu GBS in CIDP Slovenije';
+        body += `Ime ali organizacija: ${formData.get('name') || ''}
+`;
+        body += `E-pošta: ${formData.get('email') || ''}
+`;
+        body += `Telefon: ${formData.get('phone') || ''}
+`;
+        body += `Vrsta podpore: ${formData.get('supportType') || ''}
+
+`;
+        body += `Sporočilo:
+${formData.get('message') || ''}
+`;
+      }
+
+      const mailto = `mailto:gbs.cidp.skupnost@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailto;
+    });
+  });
+}
+
+function setActiveNav() {
+  const page = document.body.dataset.page;
+  document.querySelectorAll('.menu a').forEach(link => {
+    const href = link.getAttribute('href') || '';
+    if ((page === 'home' && href === 'index.html') ||
+        (page === 'bolezni' && href === 'bolezni.html') ||
+        (page === 'clanstvo' && href === 'clanstvo.html') ||
+        (page === 'novice' && href === 'novice-dogodki.html') ||
+        (page === 'podprite' && href === 'podprite.html')) {
+      link.classList.add('is-active');
+    }
+  });
+}
+
+function initMobileMenu() {
+  const toggle = document.querySelector('.menu-toggle');
+  const menu = document.getElementById('menu');
+  if (!toggle || !menu) return;
+  toggle.addEventListener('click', () => {
+    const open = menu.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', String(open));
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderCards('news-preview', siteNews, 'news', 3);
+  renderCards('events-preview', siteEvents, 'event', 3);
+  renderCards('news-list', siteNews, 'news');
+  renderCards('events-list', siteEvents, 'event');
+  handleMailForms();
+  setActiveNav();
+  initMobileMenu();
+});

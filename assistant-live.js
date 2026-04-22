@@ -6,7 +6,7 @@
     assistantRole: 'Virtualna svetovalka',
     avatarUrl: 'https://mlakarmatjaz-art.github.io/Drustvo-GBS-in-CIDP-Slovenije/assets/assistant-maya.png',
     autoOpen: false,
-    speakReplies: true,
+    speakReplies: false,
     suggestions: [
       'Kaj je GBS?',
       'Kaj je CIDP?',
@@ -178,7 +178,10 @@
       state.currentAudio.addEventListener('play', () => setStatus(`${config.assistantName} govori`, 'gbs-ai-speaking'));
       state.currentAudio.addEventListener('ended', () => setStatus('Pripravljena za pogovor'));
       state.currentAudio.addEventListener('error', () => setStatus('Odgovor pripravljen'));
-      state.currentAudio.play().catch(() => speakText('Odgovor je pripravljen.'));
+      state.currentAudio.play().catch((err) => {
+        console.error('Audio play failed:',  err);
+        setStatus('Zvok ni bil predvajan');
+      });  
       return true;
     } catch (err) {
       return false;
@@ -299,8 +302,8 @@
 
     const played = data.audioBase64 ? playAudio(data.audioBase64, data.audioMimeType) : false;
     if (!played) {
-      setStatus('Odgovor pripravljen');
-      speakText(data.reply || 'Odgovor je pripravljen.');
+      setStatus('Odgovor pripravljen brez zvoka');
+      console.warn('No OpenAI audio returned or playback failed');
     }
   }
 

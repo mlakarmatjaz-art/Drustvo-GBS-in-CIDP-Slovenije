@@ -1,10 +1,10 @@
 (function () {
   const config = Object.assign({
-    apiUrl: 'https://PASTE-YOUR-RENDER-OR-RAILWAY-URL/api/chat',
+    apiUrl: 'https://maja-gbs-cidp.onrender.com/api/chat',
     assistantName: 'Maja',
     siteName: 'Društvo GBS in CIDP Slovenije',
     assistantRole: 'Virtualna svetovalka',
-    avatarUrl: 'assets/assistant-maya.png',
+    avatarUrl: 'https://mlakarmatjaz-art.github.io/Drustvo-GBS-in-CIDP-Slovenije/assets/assistant-maya.png',
     autoOpen: false,
     speakReplies: true,
     suggestions: [

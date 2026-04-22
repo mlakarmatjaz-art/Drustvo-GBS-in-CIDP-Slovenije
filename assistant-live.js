@@ -6,7 +6,7 @@
     assistantRole: 'Virtualna svetovalka',
     avatarUrl: 'https://mlakarmatjaz-art.github.io/Drustvo-GBS-in-CIDP-Slovenije/assets/assistant-maya.png',
     autoOpen: false,
-    speakReplies: true,
+    speakReplies: false,
     suggestions: [
       'Kaj je GBS?',
       'Kaj je CIDP?',

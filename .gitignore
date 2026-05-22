@@ -1,0 +1,26 @@
+# Node / backend
+backend/node_modules/
+backend/.env
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+*.zip
+*.tar.gz
+
+# Deploy scripts (temp)
+deploy_*.py
+*.log
+
+# Private docs
+POSTOPEK-OBJAVE.md

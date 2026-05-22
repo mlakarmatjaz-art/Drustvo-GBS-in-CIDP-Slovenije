@@ -1,0 +1,20 @@
+{
+  "name": "gbs-cidp-live-assistant-backend",
+  "version": "1.1.0",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "upload-knowledge": "node scripts/upload-knowledge.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "openai": "^5.14.0"
+  }
+}

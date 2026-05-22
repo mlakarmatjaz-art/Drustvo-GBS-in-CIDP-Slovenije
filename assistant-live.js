@@ -6,7 +6,7 @@
     assistantRole: 'Virtualna svetovalka',
     avatarUrl: 'https://mlakarmatjaz-art.github.io/Drustvo-GBS-in-CIDP-Slovenije/assets/assistant-maya.png',
     autoOpen: false,
-    speakReplies: false,
+    speakReplies: true,
     suggestions: [
       'Kaj je GBS?',
       'Kaj je CIDP?',
@@ -286,21 +286,26 @@
     }
 
     try {
+      // Abort after 8 s so Render.com cold-start doesn't leave the user hanging
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
       const response = await fetch(config.apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
           history: state.history.slice(-12)
-        })
+        }),
+        signal: ctrl.signal
       });
+      clearTimeout(timer);
       if (!response.ok) throw new Error('Napaka strežnika');
       const data = await response.json();
       if (!data || !data.reply) throw new Error('Prazen odgovor');
       return data;
     } catch (err) {
       return {
-        reply: fallbackReply(text) + ' Če želite še širše in pametnejše odgovore, preverite, ali je AI strežnik pravilno povezan v ozadju.',
+        reply: fallbackReply(text),
         source: 'fallback'
       };
     }
@@ -323,10 +328,8 @@
     saveHistory();
 
     const played = data.audioBase64 ? playAudio(data.audioBase64, data.audioMimeType) : false;
-    if (!played) {
-      setStatus('Odgovor pripravljen brez zvoka');
-      console.warn('No OpenAI audio returned or playback failed');
-    }
+    // If backend sent no audio, fall back to browser TTS (Web Speech API)
+    if (!played) speakText(data.reply);
   }
 
   config.suggestions.forEach((s) => {
@@ -350,59 +353,4 @@
 
   launcher.addEventListener('click', () => openAssistant());
   closeBtn.addEventListener('click', closeAssistant);
-  root.querySelector('.gbs-ai-clear').addEventListener('click', clearHistory);
-  sendBtn.addEventListener('click', sendMessage);
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-
-  document.querySelectorAll('[data-open-assistant]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const prompt = btn.getAttribute('data-prompt') || '';
-      openAssistant(prompt);
-    });
-  });
-
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SpeechRecognition) {
-    state.recognizer = new SpeechRecognition();
-    state.recognizer.lang = 'sl-SI';
-    state.recognizer.interimResults = false;
-    state.recognizer.maxAlternatives = 1;
-
-    state.recognizer.addEventListener('start', () => {
-      state.isListening = true;
-      micBtn.classList.add('active');
-      setStatus('Poslušam vas', 'gbs-ai-listening');
-    });
-
-    state.recognizer.addEventListener('result', (event) => {
-      const transcript = Array.from(event.results).map(r => r[0].transcript).join(' ');
-      input.value = transcript;
-      sendMessage();
-    });
-
-    state.recognizer.addEventListener('end', () => {
-      state.isListening = false;
-      micBtn.classList.remove('active');
-      setStatus('Pripravljena za pogovor');
-    });
-
-    micBtn.addEventListener('click', () => {
-      if (state.isListening) state.recognizer.stop();
-      else state.recognizer.start();
-    });
-  } else {
-    micBtn.disabled = true;
-    micBtn.title = 'Ta brskalnik ne podpira glasovnega vnosa';
-  }
-
-  if (state.synth) {
-    state.synth.onvoiceschanged = () => pickVoice();
-  }
-
-  if (config.autoOpen) openAssistant();
-})();
+  root.querySelector('.gbs-ai-clear').addEventListener('click', clearHistory)

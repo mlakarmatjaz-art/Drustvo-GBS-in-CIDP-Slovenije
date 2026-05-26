@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import OpenAI from 'openai';
+import fetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,8 +28,11 @@ const ASSISTANT_NAME = process.env.ASSISTANT_NAME || 'Maja';
 const VECTOR_STORE_ID = process.env.VECTOR_STORE_ID || '';
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
 const ENABLE_TTS = String(process.env.ENABLE_TTS || 'true').toLowerCase() !== 'false';
-const TTS_MODEL = process.env.TTS_MODEL || 'gpt-4o-mini-tts';
-const TTS_VOICE = process.env.TTS_VOICE || 'nova';
+
+// ElevenLabs Settings
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'Bm6kJwx4U0amYGIxoOKC'; // Maja Masterpiece V8
+
 const ORG_CONTEXT = process.env.ORG_CONTEXT || '';
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || '';
 const SITE_URL = process.env.SITE_URL || '';
@@ -57,7 +61,6 @@ PODROČJE POMOČI:
 - Pojasnjuj splošne informacije o GBS in CIDP.
 - Odgovarjaj na vprašanja o društvu, članstvu, kontaktih, dokumentih, donacijah in podpori.
 - Znaš tudi splošna vsakdanja vprašanja, kot so pozdravi, hvaležnost, osnovne življenjske zadeve in splošen pogovor.
-- Za trenutno vreme povej, da nimaš vremenskega API-ja v živo, razen če je tak API posebej dodan.
 
 VARNOST IN MEDICINSKA ODGOVORNOST:
 - Ne postavljaj diagnoz in ne nadomeščaj zdravnika.
@@ -111,26 +114,29 @@ async function createReply(message, history = []) {
 }
 
 async function createSpeech(text) {
-  if (!ENABLE_TTS) return null;
+  if (!ENABLE_TTS || !ELEVENLABS_API_KEY) return null;
 
-  const response = await fetch('https://api.openai.com/v1/audio/speech', {
+  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      'xi-api-key': ELEVENLABS_API_KEY,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: TTS_MODEL,
-      voice: TTS_VOICE,
-      input: text,
-      response_format: 'mp3',
-      instructions: 'Speak in warm, calm, empathetic Slovene. Sound reassuring, respectful, gentle, and professional. Use soft pacing and a natural human tone.'
+      text: text,
+      model_id: "eleven_multilingual_v2",
+      voice_settings: {
+        stability: 0.8,
+        similarity_boost: 1.0,
+        style: 0.0,
+        use_speaker_boost: true
+      }
     })
   });
 
   if (!response.ok) {
     const msg = await response.text();
-    throw new Error(`TTS failed: ${msg}`);
+    throw new Error(`ElevenLabs TTS failed: ${msg}`);
   }
 
   const arrayBuffer = await response.arrayBuffer();
@@ -142,7 +148,8 @@ app.get('/api/health', (_req, res) => {
     ok: true,
     model: OPENAI_MODEL,
     vectorStoreAttached: Boolean(VECTOR_STORE_ID),
-    ttsEnabled: ENABLE_TTS
+    ttsEnabled: ENABLE_TTS,
+    ttsProvider: 'ElevenLabs'
   });
 });
 

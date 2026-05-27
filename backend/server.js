@@ -36,7 +36,7 @@ const ENABLE_TTS = String(process.env.ENABLE_TTS || 'true').toLowerCase() !== 'f
 
 // ElevenLabs Settings
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'Bm6kJwx4U0amYGIxoOKC'; // Maja Masterpiece V8
+const ELEVENLABS_VOICE_ID = 'Bm6kJwx4U0amYGIxoOKC'; // Maja Masterpiece V8
 
 const ORG_CONTEXT = process.env.ORG_CONTEXT || '';
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || '';

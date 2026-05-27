@@ -5,7 +5,7 @@
     siteName: 'Društvo GBS in CIDP Slovenije',
     assistantRole: 'Virtualna svetovalka',
     avatarUrl: 'assets/assistant-maya.png',
-    autoOpen: false,
+    autoOpen: true,
     speakReplies: true,
     suggestions: [
       'Kaj je GBS?',
@@ -370,6 +370,10 @@
   // greeting, so pre-populating here correctly suppresses it for returning users.
   if (state.history.length > 0) {
     state.history.forEach(msg => addMessage(msg.role, msg.content));
+  }
+
+  if (config.autoOpen) {
+    setTimeout(() => openAssistant(), 1000);
   }
 
   launcher.addEventListener('click', () => openAssistant());

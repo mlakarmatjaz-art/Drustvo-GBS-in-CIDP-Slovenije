@@ -15,9 +15,14 @@ app.use(express.json({ limit: '2mb' }));
 
 const allowedOrigin = process.env.ALLOWED_ORIGIN || '*';
 app.use(cors({
-  origin: true, // Allow all origins for now to ensure it works, then we can restrict if needed
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    return callback(null, true);
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });

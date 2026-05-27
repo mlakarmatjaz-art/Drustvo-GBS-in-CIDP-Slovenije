@@ -31,9 +31,30 @@
     synth: window.speechSynthesis || null
   };
 
+  const style = document.createElement('style');
+  style.textContent = `
+    #gbs-live-assistant-root { position: fixed; bottom: 20px; right: 20px; z-index: 10000; }
+    .gbs-ai-launcher { width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .gbs-ai-launcher img { width: 100%; height: 100%; object-fit: cover; }
+    .gbs-ai-panel { position: fixed; bottom: 90px; right: 20px; width: 350px; height: 500px; background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; transition: transform 0.3s ease, opacity 0.3s ease; transform-origin: bottom right; }
+    .gbs-ai-hidden { display: none !important; opacity: 0; transform: scale(0.9); pointer-events: none; }
+    .gbs-ai-header { background: #0c4a38; color: white; padding: 15px; }
+    .gbs-ai-body { flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
+    .gbs-ai-messages { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+    .gbs-ai-msg { margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; max-width: 80%; }
+    .gbs-ai-msg.user { align-self: flex-end; background: #e4f3ec; color: #0c4a38; }
+    .gbs-ai-msg.assistant { align-self: flex-start; background: #f3ede4; color: #15120e; }
+    .gbs-ai-composer { display: flex; gap: 8px; border-top: 1px solid #eee; padding-top: 10px; }
+    .gbs-ai-input { flex: 1; border: 1px solid #ddd; border-radius: 4px; padding: 8px; resize: none; }
+    .gbs-ai-send { background: #0c4a38; color: white; border: none; border-radius: 4px; padding: 8px 15px; cursor: pointer; }
+    .gbs-ai-topline { display: flex; justify-content: space-between; align-items: center; }
+    .gbs-ai-close { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+  `;
+  document.head.appendChild(style);
+
   const root = document.createElement('div');
   root.id = 'gbs-live-assistant-root';
-  root.innerHTML = `
+  root.innerHTML = \`
     <button class="gbs-ai-launcher gbs-ai-breathing" aria-label="Odpri AI asistentko">
       <span class="gbs-ai-pulse"></span>
       <img src="${config.avatarUrl}" alt="${config.assistantName}">

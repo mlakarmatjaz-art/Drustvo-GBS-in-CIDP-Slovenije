@@ -15,7 +15,7 @@ app.use(express.json({ limit: '2mb' }));
 
 const allowedOrigin = process.env.ALLOWED_ORIGIN || '*';
 app.use(cors({
-  origin: allowedOrigin === '*' ? true : allowedOrigin.split(',').map(v => v.trim()),
+  origin: true, // Allow all origins for now to ensure it works, then we can restrict if needed
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));

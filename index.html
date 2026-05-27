@@ -1200,7 +1200,26 @@ p { color: var(--text-2); font-weight: 300; }
 </style>
 
 <link rel="stylesheet" href="assistant-live.css">
-</head>
+<style id="manus-action-click-effect-style">
+        @keyframes manus-action-ripple-effect {
+          0% {
+            transform: scale(0);
+            opacity: 1;
+          }
+          20% {
+            transform: scale(1);
+            opacity: 0.8;
+          }
+          80% {
+            transform: scale(1.2);
+            opacity: 0.6;
+          }
+          100% {
+            transform: scale(1.5);
+            opacity: 0;
+          }
+        }
+      </style></head>
 <body>
 
 <!-- MOBILE NAV -->
@@ -2108,16 +2127,7 @@ p { color: var(--text-2); font-weight: 300; }
     greeting: 'Pozdravljeni. Sem Maja, virtualna asistentka Društva GBS in CIDP Slovenije. Z veseljem pomagam pri vprašanjih o društvu, GBS, CIDP, dokumentih, podpori in osnovnih vsakdanjih vprašanjih.'
   };
 </script>
-<script src="assistant-live.js?v=20260526"></script><div id="gbs-live-assistant-root">
-    <button class="gbs-ai-launcher gbs-ai-breathing" aria-label="Odpri AI asistentko" data-manus_clickable="true" data-manus_click_id="15">
-      <span class="gbs-ai-pulse"></span>
-      <img src="assets/assistant-maya.png" alt="Maja">
-    </button>
-    <section class="gbs-ai-panel gbs-ai-hidden gbs-ai-breathing" aria-live="polite">
-      <header class="gbs-ai-header">
-        <div class="gbs-ai-topline">
-          <div>
-            <div style="font-size:13px;opacity:.88">AI pomoč v živo</div>
+
             <strong>Društvo GBS in CIDP Slovenije</strong>
           </div>
           <button class="gbs-ai-clear" aria-label="Počisti pogovor" title="Počisti pogovor" style="background:none;border:none;cursor:pointer;font-size:15px;opacity:.55;padding:2px 6px;transition:opacity .2s;" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='.55'">🗑</button>
@@ -2227,5 +2237,15 @@ document.getElementById('membership-form').addEventListener('submit', e => {
 });
 </script>
 
-<script src="assistant-live.js?v=1.3"></script>
-</body><div id="manus-action-mask-host" style="position: fixed; inset: 0px; pointer-events: none; z-index: 2147483646;"></div></html>
+
+<div id="manus-action-mask-host" style="position: fixed; inset: 0px; pointer-events: none; z-index: 2147483646;"></div>
+<script>
+  window.GBSLiveAssistantConfig = {
+    backendUrl: 'https://maja-gbs-cidp.onrender.com',
+    avatarUrl: 'assets/assistant-maya.png',
+    autoOpen: false
+  };
+</script>
+<script src="assistant-live.js?v=2.1"></script>
+</body>
+<div id="manus-action-mask-host" style="position: fixed; inset: 0px; pointer-events: none; z-index: 2147483646;"></div></html>

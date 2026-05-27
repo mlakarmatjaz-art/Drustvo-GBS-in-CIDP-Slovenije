@@ -1,104 +1,64 @@
-(function () {
-  const config = Object.assign({
-    apiUrl: 'https://maja-gbs-cidp.onrender.com/api/chat',
-    assistantName: 'Maja',
-    siteName: 'Društvo GBS in CIDP Slovenije',
-    assistantRole: 'Virtualna svetovalka',
+(function() {
+  const config = window.GBSLiveAssistantConfig || {
+    backendUrl: 'https://maja-gbs-cidp.onrender.com',
     avatarUrl: 'assets/assistant-maya.png',
-    autoOpen: true,
-    speakReplies: true,
-    suggestions: [
-      'Kaj je GBS?',
-      'Kaj je CIDP?',
-      'Kako postanem član?',
-      'Katere dokumente ponuja društvo?',
-      'Potrebujem prijazen pogovor.'
-    ],
-    greeting: 'Pozdravljeni. Sem Maja, virtualna asistentka društva. Z veseljem pomagam pri vprašanjih o GBS, CIDP, članstvu, dokumentih, podpori in osnovnih vsakdanjih vprašanjih.'
-  }, window.GBSLiveAssistantConfig || {});
-
-  // Key used for localStorage chat history persistence
-  const STORAGE_KEY = 'gbs-maja-history';
+    autoOpen: false
+  };
 
   const state = {
-    history: (function () {
-      // Restore conversation history from localStorage so returning users keep their context
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch (e) { return []; }
-    })(),
-    currentAudio: null,
-    recognizer: null,
+    isOpen: false,
     isListening: false,
-    synth: window.speechSynthesis || null
+    history: []
   };
+
+  // Create UI
+  const root = document.createElement('div');
+  root.id = 'gbs-live-assistant-root';
+  document.body.appendChild(root);
 
   const style = document.createElement('style');
   style.textContent = `
-    #gbs-live-assistant-root { position: fixed; bottom: 20px; right: 20px; z-index: 10000; }
-    .gbs-ai-launcher { width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    #gbs-live-assistant-root { position: fixed; bottom: 20px; right: 20px; z-index: 100000 !important; font-family: 'DM Sans', sans-serif; }
+    .gbs-ai-launcher { width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; overflow: hidden; transition: transform 0.3s ease; }
+    .gbs-ai-launcher:hover { transform: scale(1.1); }
     .gbs-ai-launcher img { width: 100%; height: 100%; object-fit: cover; }
-    .gbs-ai-panel { position: fixed; bottom: 90px; right: 20px; width: 350px; height: 500px; background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); display: flex; flex-direction: column; overflow: hidden; transition: transform 0.3s ease, opacity 0.3s ease; transform-origin: bottom right; }
-    .gbs-ai-hidden { display: none !important; opacity: 0; transform: scale(0.9); pointer-events: none; }
-    .gbs-ai-header { background: #0c4a38; color: white; padding: 15px; }
-    .gbs-ai-body { flex: 1; display: flex; flex-direction: column; padding: 15px; overflow-y: auto; }
-    .gbs-ai-messages { flex: 1; overflow-y: auto; margin-bottom: 10px; }
-    .gbs-ai-msg { margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; max-width: 80%; }
-    .gbs-ai-msg.user { align-self: flex-end; background: #e4f3ec; color: #0c4a38; }
-    .gbs-ai-msg.assistant { align-self: flex-start; background: #f3ede4; color: #15120e; }
-    .gbs-ai-composer { display: flex; gap: 8px; border-top: 1px solid #eee; padding-top: 10px; }
-    .gbs-ai-input { flex: 1; border: 1px solid #ddd; border-radius: 4px; padding: 8px; resize: none; }
-    .gbs-ai-send { background: #0c4a38; color: white; border: none; border-radius: 4px; padding: 8px 15px; cursor: pointer; }
-    .gbs-ai-topline { display: flex; justify-content: space-between; align-items: center; }
+    .gbs-ai-panel { position: fixed; bottom: 90px; right: 20px; width: 350px; height: 500px; background: white; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); display: none; flex-direction: column; overflow: hidden; border: 1px solid #eee; }
+    .gbs-ai-panel.active { display: flex; }
+    .gbs-ai-header { background: #0c4a38; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .gbs-ai-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .gbs-ai-messages { flex: 1; overflow-y: auto; padding: 15px; background: #fafafa; display: flex; flex-direction: column; }
+    .gbs-ai-message { margin-bottom: 10px; padding: 10px; border-radius: 8px; max-width: 85%; font-size: 14px; line-height: 1.4; }
+    .gbs-ai-message.user { background: #e4f3ec; align-self: flex-end; margin-left: auto; border-bottom-right-radius: 2px; }
+    .gbs-ai-message.assistant { background: white; border: 1px solid #eee; align-self: flex-start; border-bottom-left-radius: 2px; }
+    .gbs-ai-composer { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 5px; align-items: center; }
+    .gbs-ai-input { flex: 1; border: 1px solid #ddd; border-radius: 20px; padding: 8px 15px; outline: none; }
+    .gbs-ai-mic { background: none; border: none; font-size: 20px; cursor: pointer; color: #666; padding: 5px; display: flex; align-items: center; }
+    .gbs-ai-mic.active { color: #b82a1e; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    .gbs-ai-send { background: #0c4a38; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .gbs-ai-close { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
   `;
   document.head.appendChild(style);
 
-  const root = document.createElement('div');
-  root.id = 'gbs-live-assistant-root';
-  root.innerHTML = \`
-    <button class="gbs-ai-launcher gbs-ai-breathing" aria-label="Odpri AI asistentko">
-      <span class="gbs-ai-pulse"></span>
-      <img src="${config.avatarUrl}" alt="${config.assistantName}">
+  root.innerHTML = `
+    <button class="gbs-ai-launcher" aria-label="Odpri asistentko">
+      <img src="${config.avatarUrl}" alt="Maja">
     </button>
-    <section class="gbs-ai-panel gbs-ai-hidden gbs-ai-breathing" aria-live="polite">
+    <div class="gbs-ai-panel">
       <header class="gbs-ai-header">
-        <div class="gbs-ai-topline">
-          <div>
-            <div style="font-size:13px;opacity:.88">AI pomoč v živo</div>
-            <strong>${config.siteName}</strong>
-          </div>
-          <button class="gbs-ai-clear" aria-label="Počisti pogovor" title="Počisti pogovor" style="background:none;border:none;cursor:pointer;font-size:15px;opacity:.55;padding:2px 6px;transition:opacity .2s;" onmouseover="this.style.opacity='.9'" onmouseout="this.style.opacity='.55'">🗑</button>
-          <button class="gbs-ai-close" aria-label="Zapri">×</button>
-        </div>
-        <div class="gbs-ai-hero">
-          <div class="gbs-ai-avatar-wrap">
-            <div class="gbs-ai-avatar-ring"></div>
-            <img class="gbs-ai-avatar" src="${config.avatarUrl}" alt="${config.assistantName}">
-          </div>
-          <div>
-            <h2 class="gbs-ai-title">${config.assistantName}</h2>
-            <p class="gbs-ai-subtitle">${config.assistantRole}. Topla, vljudna in empatična pomoč za vprašanja o društvu, GBS, CIDP in vsakdanjih zadevah.</p>
-          </div>
-        </div>
-        <div class="gbs-ai-statusbar">
-          <span class="gbs-ai-badge" data-status>Pripravljena za pogovor</span>
-          <span class="gbs-ai-eq" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
-        </div>
+        <strong>Maja - AI pomoč</strong>
+        <button class="gbs-ai-close">&times;</button>
       </header>
       <div class="gbs-ai-body">
-        <div class="gbs-ai-suggestions"></div>
         <div class="gbs-ai-messages"></div>
         <div class="gbs-ai-composer">
-          <div class="gbs-ai-inputrow">
-            <button class="gbs-ai-mic" type="button" aria-label="Govori">🎙️</button>
-            <textarea class="gbs-ai-input" rows="1" placeholder="Napišite vprašanje ali uporabite mikrofon..."></textarea>
-            <button class="gbs-ai-send" type="button" aria-label="Pošlji">➤</button>
-          </div>
-          <div class="gbs-ai-note">Informativna pomoč. Ob nujnih simptomih takoj pokličite 112 ali se obrnite na zdravnika.</div>
+          <button class="gbs-ai-mic" title="Glasovno spraševanje">🎤</button>
+          <input type="text" class="gbs-ai-input" placeholder="Vprašajte Majo...">
+          <button class="gbs-ai-send">➤</button>
         </div>
       </div>
-    </section>
+    </div>
   `;
-  document.body.appendChild(root);
 
   const launcher = root.querySelector('.gbs-ai-launcher');
   const panel = root.querySelector('.gbs-ai-panel');
@@ -107,229 +67,69 @@
   const input = root.querySelector('.gbs-ai-input');
   const sendBtn = root.querySelector('.gbs-ai-send');
   const micBtn = root.querySelector('.gbs-ai-mic');
-  const suggestionsWrap = root.querySelector('.gbs-ai-suggestions');
-  const statusEl = root.querySelector('[data-status]');
 
-  // Persist current history array to localStorage (called after every message push)
-  function saveHistory() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.history)); } catch (e) {}
+  // Speech Recognition Setup
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.lang = 'sl-SI';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      const text = event.results[0][0].transcript;
+      input.value = text;
+      sendMessage();
+    };
+
+    recognition.onend = () => {
+      state.isListening = false;
+      micBtn.classList.remove('active');
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      micBtn.classList.remove('active');
+    };
+  } else {
+    micBtn.style.display = 'none';
   }
 
-  // Wipe history from localStorage and reset the conversation to a fresh greeting
-  function clearHistory() {
-    state.history = [];
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-    messages.innerHTML = '';
-    addMessage('assistant', config.greeting);
-  }
-
-  function setStatus(text, mode) {
-    statusEl.textContent = text;
-    panel.classList.remove('gbs-ai-speaking', 'gbs-ai-listening');
-    if (mode) panel.classList.add(mode);
-  }
-
-  function addMessage(role, text, opts = {}) {
-    const bubble = document.createElement('div');
-    bubble.className = `gbs-ai-msg ${role}`;
-    if (opts.typing) {
-      bubble.innerHTML = '<span class="gbs-ai-typing"><span></span><span></span><span></span></span>';
+  function toggleMic() {
+    if (!recognition) return;
+    if (state.isListening) {
+      recognition.stop();
     } else {
-      bubble.textContent = text;
+      recognition.start();
+      state.isListening = true;
+      micBtn.classList.add('active');
     }
-    messages.appendChild(bubble);
-    messages.scrollTop = messages.scrollHeight;
-    return bubble;
   }
 
-  function openAssistant(prefill) {
-    panel.classList.remove('gbs-ai-hidden');
-    launcher.classList.add('gbs-ai-hidden');
+  function openAssistant(prompt = '') {
+    panel.classList.add('active');
+    state.isOpen = true;
     if (messages.children.length === 0) {
-      addMessage('assistant', config.greeting);
+      addMessage('assistant', 'Pozdravljeni! Sem Maja. Kako vam lahko pomagam?');
     }
-    if (prefill) {
-      input.value = prefill;
+    if (prompt) {
+      input.value = prompt;
+      sendMessage();
     }
-    setTimeout(() => input.focus(), 40);
   }
 
   function closeAssistant() {
-    panel.classList.add('gbs-ai-hidden');
-    launcher.classList.remove('gbs-ai-hidden');
-    setStatus('Pripravljena za pogovor');
-    stopSpeech();
+    panel.classList.remove('active');
+    state.isOpen = false;
   }
 
-  function pickVoice() {
-    if (!state.synth) return null;
-    const voices = state.synth.getVoices() || [];
-    const preferred = [
-      /sl(-|_)si/i,
-      /croatian|hr(-|_)hr/i,
-      /serbian|sr(-|_)rs/i,
-      /sloven/i,
-      /female/i,
-      /zira|aria|eva|emma|samantha|helena/i
-    ];
-    for (const pattern of preferred) {
-      const v = voices.find(voice => pattern.test(`${voice.lang} ${voice.name}`));
-      if (v) return v;
-    }
-    return voices[0] || null;
-  }
-
-  function stopSpeech() {
-    if (state.currentAudio) {
-      state.currentAudio.pause();
-      state.currentAudio = null;
-    }
-    if (state.synth && state.synth.speaking) {
-      state.synth.cancel();
-    }
-  }
-
-  function speakText(text) {
-    if (!config.speakReplies || !state.synth || !text) return;
-    stopSpeech();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'sl-SI';
-    utter.rate = 0.97;
-    utter.pitch = 1.03;
-    utter.volume = 1;
-    const voice = pickVoice();
-    if (voice) utter.voice = voice;
-    utter.onstart = () => setStatus(`${config.assistantName} govori`, 'gbs-ai-speaking');
-    utter.onend = () => setStatus('Pripravljena za pogovor');
-    utter.onerror = () => setStatus('Odgovor pripravljen');
-    state.synth.speak(utter);
-  }
-
-  function playAudio(base64, mimeType) {
-    if (!base64) return false;
-    try {
-      const binary = atob(base64);
-      const len = binary.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-      const blob = new Blob([bytes], { type: mimeType || 'audio/mpeg' });
-      const url = URL.createObjectURL(blob);
-      stopSpeech();
-      state.currentAudio = new Audio(url);
-      state.currentAudio.addEventListener('play', () => setStatus(`${config.assistantName} govori`, 'gbs-ai-speaking'));
-      state.currentAudio.addEventListener('ended', () => setStatus('Pripravljena za pogovor'));
-      state.currentAudio.addEventListener('error', () => setStatus('Odgovor pripravljen'));
-      state.currentAudio.play().catch((err) => {
-        console.error('Audio play failed:',  err);
-        setStatus('Zvok ni bil predvajan');
-      });  
-      return true;
-    } catch (err) {
-      return false;
-    }
-  }
-
-  function fallbackReply(raw) {
-    const text = (raw || '').toLowerCase();
-    const has = (...parts) => parts.some(p => text.includes(p));
-
-    if (has('živjo', 'pozdrav', 'dober dan', 'dobro jutro', 'dober večer', 'hej')) {
-      return 'Pozdravljeni. Sem Maja. Vesela sem, da ste tukaj. Pomagam lahko pri vprašanjih o društvu, GBS, CIDP, članstvu, dokumentih ali pa preprosto prijazno poklepetam z vami.';
-    }
-
-    if (has('hvala', 'najlepša hvala')) {
-      return 'Z veseljem. Tukaj sem, če želite nadaljevati ali vprašati še kaj drugega.';
-    }
-
-    if (has('kako si', 'kako ste')) {
-      return 'Hvala za vprašanje. Tukaj sem, pripravljena, mirna in osredotočena na to, da vam pomagam čim bolj prijazno in jasno.';
-    }
-
-    if (has('vreme')) {
-      return 'Trenutno nimam povezave do podatkov o vremenu v živo. Lahko pa vam pomagam pri drugih vprašanjih o društvu, GBS, CIDP ali vsakdanjih zadevah.';
-    }
-
-    if (has('kaj je gbs', 'gbs?', 'guillain', 'barré', 'barréjev')) {
-      return 'GBS, Guillain-Barréjev sindrom, je redka avtoimunska bolezen, pri kateri imunski sistem napade periferni živčni sistem. Simptomi se navadno razvijejo hitro, v dneh do tednih, pogosto po okužbi. Med pogostimi znaki so mravljinčenje, šibkost v nogah, težave z ravnotežjem, bolečine ter v hujših primerih težave z dihanjem ali požiranjem. Ob hitrem poslabšanju je potrebna takojšnja zdravniška ocena.';
-    }
-
-    if (has('kaj je cidp', 'cidp?')) {
-      return 'CIDP je kronična vnetna demielinizacijska polinevropatija. Gre za vnetno bolezen živcev, ki navadno poteka počasneje kot GBS, postopno ali v zagonih. Pogosti znaki so simetrična šibkost rok in nog, odrevenelost, mravljinčenje, zmanjšani refleksi, utrudljivost in negotov hod. Pogosto zahteva dolgoročnejšo nevrološko obravnavo.';
-    }
-
-    if (has('razlika', 'razlika med gbs in cidp')) {
-      return 'Glavna razlika je v poteku bolezni. GBS običajno nastopi hitro in akutno, CIDP pa traja dlje časa, več kot 8 tednov, in poteka kronično ali v zagonih. Obe bolezni prizadeneta periferni živčni sistem, vendar je za natančno razlikovanje potreben nevrološki pregled.';
-    }
-
-    if (has('simptom', 'znaki gbs', 'znaki cidp', 'mravljinčenje', 'šibkost')) {
-      return 'Pogosti simptomi pri GBS in CIDP so šibkost, mravljinčenje, odrevenelost, zmanjšani refleksi, težave z ravnotežjem in utrudljivost. Pri GBS se simptomi navadno razvijejo hitreje. Ob težavah z dihanjem, požiranjem, govorom ali nenadni nezmožnosti hoje je potrebna takojšnja zdravniška pomoč.';
-    }
-
-    if (has('zdravljenje', 'ivig', 'plazmafereza', 'kortikosteroidi', 'rehabilit')) {
-      return 'Zdravljenje je odvisno od diagnoze in poteka bolezni. Pri GBS in CIDP se lahko uporabljajo IVIg, plazmafereza, pri CIDP tudi kortikosteroidi ali druga imunomodulacijska terapija. Pomemben del okrevanja sta fizioterapija in delovna terapija, pri dolgotrajnejših težavah pa tudi psihološka podpora.';
-    }
-
-    if (has('nujno', 'nujna pomoč', 'dihanje', 'požiranje', 'ne morem hoditi', 'ne more hoditi')) {
-      return 'Ob hitrem slabšanju moči, težavah z dihanjem, požiranjem ali govorom, nenadni nezmožnosti hoje ali izraziti nestabilnosti je potrebna takojšnja zdravniška ocena. V nujnih primerih pokličite 112 ali se takoj obrnite na urgenco.';
-    }
-
-    if (has('član', 'članstvo', 'postanem član', 'včlanitev')) {
-      return 'Včlanitev je namenjena osebam z GBS, CIDP ali sorodnim stanjem, njihovim svojcem, skrbnikom in tudi podpornim članom. Na spletni strani v razdelku Članstvo sta na voljo obrazca za rednega in podpornega člana, oddate pa lahko tudi povpraševanje preko pripravljenega e-poštnega obrazca.';
-    }
-
-    if (has('dokumenti', 'statut', 'zloženka', 'pristopna izjava', 'donacijska pogodba', 'sponzorska pogodba')) {
-      return 'Na spletni strani so na voljo statut društva, informativni dokument, tridelna zloženka PDF, pristopna izjava za rednega člana, pristopna izjava za podpornega člana, donacijska pogodba in sponzorska pogodba. Najdete jih v razdelku Dokumenti in gradiva.';
-    }
-
-    if (has('kontakt', 'e-pošta', 'email', 'naslov društva')) {
-      return 'Društvo lahko kontaktirate na e-pošto gbs.cidp.skupnost@gmail.com. Naslov društva je Studenec 70, 8293 Studenec, Slovenija.';
-    }
-
-    if (has('donacij', 'sponzor', 'prostovol')) {
-      return 'Društvo lahko podprete z donacijo, sponzorstvom, prostovoljskim sodelovanjem ali deljenjem informacij. Na spletni strani sta na voljo donacijska in sponzorska pogodba, za prostovoljstvo pa se lahko oglasite po e-pošti.';
-    }
-
-    if (has('facebook')) {
-      return 'Društvo ima tudi Facebook skupnost, kjer objavlja obvestila, novice in spodbudne vsebine za člane in širšo javnost.';
-    }
-
-    if (has('osamljen', 'strah', 'bojim', 'težko mi je', 'utrujen sem', 'utrujena sem')) {
-      return 'Žal mi je, da vam je težko. Pri takih boleznih so utrudljivost, negotovost in čustvena obremenitev zelo pogosti. Niste sami. Če želite, lahko skupaj mirno predelava vprašanja o bolezni, rehabilitaciji, podpori svojcev ali korake, ki vam lahko pomagajo danes.';
-    }
-
-    return 'Z veseljem pomagam. Trenutno najbolje odgovarjam na vprašanja o društvu, članstvu, dokumentih, kontaktih, GBS, CIDP, rehabilitaciji, podpori in osnovnem vsakdanjem pogovoru. Vprašanje lahko tudi postavite bolj konkretno, na primer: Kaj je GBS?, Kako postanem član?, Kateri dokumenti so na voljo?';
-  }
-
-  async function getReply(text) {
-    const apiConfigured = config.apiUrl && !/YOUR-BACKEND/i.test(config.apiUrl);
-    if (!apiConfigured) {
-      return { reply: fallbackReply(text), source: 'fallback' };
-    }
-
-    try {
-      // Abort after 8 s so Render.com cold-start doesn't leave the user hanging
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8000);
-      const response = await fetch(config.apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          history: state.history.slice(-12)
-        }),
-        signal: ctrl.signal
-      });
-      clearTimeout(timer);
-      if (!response.ok) throw new Error('Napaka strežnika');
-      const data = await response.json();
-      if (!data || !data.reply) throw new Error('Prazen odgovor');
-      return data;
-    } catch (err) {
-      return {
-        reply: fallbackReply(text),
-        source: 'fallback'
-      };
-    }
+  function addMessage(role, text) {
+    const div = document.createElement('div');
+    div.className = `gbs-ai-message ${role}`;
+    div.textContent = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
   }
 
   async function sendMessage() {
@@ -337,45 +137,40 @@
     if (!text) return;
     input.value = '';
     addMessage('user', text);
-    state.history.push({ role: 'user', content: text });
-    saveHistory();
-    const typing = addMessage('assistant', '', { typing: true });
-    setStatus(`${config.assistantName} razmišlja`);
 
-    const data = await getReply(text);
-    typing.remove();
-    addMessage('assistant', data.reply || 'Trenutno nimam odgovora.');
-    state.history.push({ role: 'assistant', content: data.reply || '' });
-    saveHistory();
-
-    const played = data.audioBase64 ? playAudio(data.audioBase64, data.audioMimeType) : false;
-    // If backend sent no audio, fall back to browser TTS (Web Speech API)
-    if (!played) speakText(data.reply);
-  }
-
-  config.suggestions.forEach((s) => {
-    const chip = document.createElement('button');
-    chip.className = 'gbs-ai-chip';
-    chip.type = 'button';
-    chip.textContent = s;
-    chip.addEventListener('click', () => {
-      input.value = s;
-      sendMessage();
-    });
-    suggestionsWrap.appendChild(chip);
-  });
-
-  // Pre-render any restored history into the messages container.
-  // openAssistant() checks messages.children.length === 0 to decide whether to show the
-  // greeting, so pre-populating here correctly suppresses it for returning users.
-  if (state.history.length > 0) {
-    state.history.forEach(msg => addMessage(msg.role, msg.content));
-  }
-
-  if (config.autoOpen) {
-    setTimeout(() => openAssistant(), 1000);
+    try {
+      const res = await fetch(`${config.backendUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      });
+      const data = await res.json();
+      addMessage('assistant', data.reply || 'Oprostite, prišlo je do napake.');
+      if (data.audioBase64) {
+        const audio = new Audio("data:audio/mp3;base64," + data.audioBase64);
+        audio.play();
+      }
+    } catch (e) {
+      addMessage('assistant', 'Trenutno nisem dosegljiva. Prosim, poskusite kasneje.');
+    }
   }
 
   launcher.addEventListener('click', () => openAssistant());
-  closeBtn.addEventListener('click', closeAssistant);
-  root.querySelector('.gbs-ai-clear').addEventListener('click', clearHistory)
+  closeBtn.addEventListener('click', () => closeAssistant());
+  sendBtn.addEventListener('click', () => sendMessage());
+  micBtn.addEventListener('click', () => toggleMic());
+  input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-open-assistant]') || 
+                (e.target.tagName === 'A' && e.target.innerText.includes('Pogovor z Majo')) ||
+                (e.target.tagName === 'BUTTON' && e.target.innerText.includes('Odpri asistentko'));
+    
+    if (btn) {
+      e.preventDefault();
+      openAssistant();
+    }
+  });
+
+  if (config.autoOpen) setTimeout(openAssistant, 1000);
+})();

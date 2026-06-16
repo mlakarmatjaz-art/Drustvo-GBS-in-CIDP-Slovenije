@@ -6,6 +6,7 @@ import express from 'express';
 import cors from 'cors';
 import OpenAI from 'openai';
 import fetch from 'node-fetch';
+import { MsEdgeTTS, OUTPUT_FORMAT } from 'msedge-tts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +38,7 @@ const ENABLE_TTS = String(process.env.ENABLE_TTS || 'true').toLowerCase() !== 'f
 // ElevenLabs Settings
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = 'wRGpEKLPUjtXkDLpOdLh'; // Maja GBS Final V10
+const TTS_VOICE_SL = process.env.TTS_VOICE_SL || 'sl-SI-PetraNeural'; // domaci slovenski glas (kot v videih)
 
 const ORG_CONTEXT = process.env.ORG_CONTEXT || '';
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || '';
@@ -118,34 +120,49 @@ async function createReply(message, history = []) {
   return response.output_text || 'Trenutno nimam odgovora.';
 }
 
-async function createSpeech(text) {
-  if (!ENABLE_TTS || !ELEVENLABS_API_KEY) return null;
-
+async function createSpeechEleven(text) {
+  if (!ELEVENLABS_API_KEY) return null;
   const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`, {
     method: 'POST',
-    headers: {
-      'xi-api-key': ELEVENLABS_API_KEY,
-      'Content-Type': 'application/json'
-    },
+    headers: { 'xi-api-key': ELEVENLABS_API_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      text: text,
+      text,
       model_id: "eleven_multilingual_v2",
-      voice_settings: {
-        stability: 0.8,
-        similarity_boost: 1.0,
-        style: 0.0,
-        use_speaker_boost: true
-      }
+      voice_settings: { stability: 0.8, similarity_boost: 1.0, style: 0.0, use_speaker_boost: true }
     })
   });
-
-  if (!response.ok) {
-    const msg = await response.text();
-    throw new Error(`ElevenLabs TTS failed: ${msg}`);
-  }
-
+  if (!response.ok) { const msg = await response.text(); throw new Error(`ElevenLabs TTS failed: ${msg}`); }
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer).toString('base64');
+}
+
+// Domaci slovenski glas prek Microsoft Edge Neural TTS (npr. sl-SI-PetraNeural) -> cista slovenscina
+async function createSpeechEdge(text) {
+  const tts = new MsEdgeTTS();
+  await tts.setMetadata(TTS_VOICE_SL, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+  const { audioStream } = tts.toStream(text);
+  return await new Promise((resolve, reject) => {
+    const chunks = [];
+    const timer = setTimeout(() => reject(new Error('Edge TTS timeout')), 20000);
+    audioStream.on('data', (c) => chunks.push(c));
+    audioStream.on('end', () => { clearTimeout(timer); const b = Buffer.concat(chunks); b.length ? resolve(b.toString('base64')) : reject(new Error('Edge TTS empty')); });
+    audioStream.on('error', (e) => { clearTimeout(timer); reject(e); });
+  });
+}
+
+async function createSpeech(text) {
+  if (!ENABLE_TTS) return { base64: null, provider: 'none' };
+  // Primarno: domaci slovenski glas (cista slovenscina, kot v videih)
+  try {
+    const b = await createSpeechEdge(text);
+    if (b) return { base64: b, provider: 'edge:' + TTS_VOICE_SL };
+  } catch (e) { console.error('Edge TTS failed, fallback to ElevenLabs:', e.message); }
+  // Rezerva: ElevenLabs, da zvok nikoli ne manjka
+  try {
+    const b = await createSpeechEleven(text);
+    if (b) return { base64: b, provider: 'elevenlabs' };
+  } catch (e) { console.error('ElevenLabs TTS failed:', e.message); }
+  return { base64: null, provider: 'none' };
 }
 
 app.get('/api/health', (_req, res) => {
@@ -154,7 +171,8 @@ app.get('/api/health', (_req, res) => {
     model: OPENAI_MODEL,
     vectorStoreAttached: Boolean(VECTOR_STORE_ID),
     ttsEnabled: ENABLE_TTS,
-    ttsProvider: 'ElevenLabs'
+    ttsPrimary: TTS_VOICE_SL,
+    ttsFallback: 'ElevenLabs'
   });
 });
 
@@ -167,9 +185,12 @@ app.post('/api/chat', async (req, res) => {
     const reply = await createReply(message, history);
 
     let audioBase64 = null;
+    let ttsProvider = 'none';
     if (ENABLE_TTS) {
       try {
-        audioBase64 = await createSpeech(reply);
+        const speech = await createSpeech(reply);
+        audioBase64 = speech.base64;
+        ttsProvider = speech.provider;
       } catch (ttsError) {
         console.error('TTS warning:', ttsError.message);
       }
@@ -178,7 +199,8 @@ app.post('/api/chat', async (req, res) => {
     res.json({
       reply,
       audioBase64,
-      audioMimeType: 'audio/mpeg'
+      audioMimeType: 'audio/mpeg',
+      ttsProvider
     });
   } catch (error) {
     console.error(error);

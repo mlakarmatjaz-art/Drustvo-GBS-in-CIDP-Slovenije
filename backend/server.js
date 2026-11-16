@@ -95,9 +95,15 @@ function normalizeHistory(history) {
     .map(item => ({ role: item.role, content: item.content }));
 }
 
-async function createReply(message, history = []) {
+// Dodatek k navodilom, kadar uporabnik sprašuje z glasom in bo odgovor prebran na glas
+const VOICE_STYLE = `GLASOVNI ODGOVOR: Uporabnik je vprašal z glasom in tvoj odgovor bo prebran na glas.
+- Odgovori v dveh do štirih kratkih, toplih povedih, kot bi se pogovarjala s človekom ob sebi.
+- Brez alinej, naslovov, oklepajev, okrajšav in spletnih naslovov. Številke in kratice izpiši z besedo, kjer je to naravno.
+- Če je tema obsežna, povej bistvo in ponudi, da poveš več.`;
+
+async function createReply(message, history = [], voice = false) {
   const input = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: voice ? `${SYSTEM_PROMPT}\n\n${VOICE_STYLE}` : SYSTEM_PROMPT },
     ...normalizeHistory(history),
     { role: 'user', content: message }
   ];
@@ -145,24 +151,42 @@ async function createSpeechEdge(text) {
     const chunks = [];
     const timer = setTimeout(() => reject(new Error('Edge TTS timeout')), 20000);
     audioStream.on('data', (c) => chunks.push(c));
-    audioStream.on('end', () => { clearTimeout(timer); const b = Buffer.concat(chunks); b.length ? resolve(b.toString('base64')) : reject(new Error('Edge TTS empty')); });
+    const done = () => { clearTimeout(timer); const b = Buffer.concat(chunks); b.length ? resolve(b.toString('base64')) : reject(new Error('Edge TTS empty')); };
+    audioStream.on('end', done);
+    audioStream.on('close', done);
     audioStream.on('error', (e) => { clearTimeout(timer); reject(e); });
   });
 }
 
+// Besedilo za branje na glas: brez znakov za oblikovanje in spletnih naslovov
+function cleanForSpeech(text) {
+  return String(text)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[*_#`>]+/g, '')
+    .replace(/^\s*[-•]\s+/gm, '')
+    .replace(/\s+\n/g, '\n')
+    .trim();
+}
+
+const shortErr = (e) => String(e?.message || e).replace(/\s+/g, ' ').slice(0, 240);
+
 async function createSpeech(text) {
-  if (!ENABLE_TTS) return { base64: null, provider: 'none' };
+  if (!ENABLE_TTS) return { base64: null, provider: 'none', errors: [] };
+  const speakText = cleanForSpeech(text);
+  const errors = [];
   // Primarno: domaci slovenski glas (cista slovenscina, kot v videih)
   try {
-    const b = await createSpeechEdge(text);
-    if (b) return { base64: b, provider: 'edge:' + TTS_VOICE_SL };
-  } catch (e) { console.error('Edge TTS failed, fallback to ElevenLabs:', e.message); }
+    const b = await createSpeechEdge(speakText);
+    if (b) return { base64: b, provider: 'edge:' + TTS_VOICE_SL, errors };
+  } catch (e) { console.error('Edge TTS failed, fallback to ElevenLabs:', e.message); errors.push('edge: ' + shortErr(e)); }
   // Rezerva: ElevenLabs, da zvok nikoli ne manjka
   try {
-    const b = await createSpeechEleven(text);
-    if (b) return { base64: b, provider: 'elevenlabs' };
-  } catch (e) { console.error('ElevenLabs TTS failed:', e.message); }
-  return { base64: null, provider: 'none' };
+    const b = await createSpeechEleven(speakText);
+    if (b) return { base64: b, provider: 'elevenlabs', errors };
+    errors.push('elevenlabs: ni nastavljenega kljuca (ELEVENLABS_API_KEY)');
+  } catch (e) { console.error('ElevenLabs TTS failed:', e.message); errors.push('elevenlabs: ' + shortErr(e)); }
+  return { base64: null, provider: 'none', errors };
 }
 
 app.get('/api/health', (_req, res) => {
@@ -182,17 +206,25 @@ app.post('/api/chat', async (req, res) => {
     const history = req.body?.history || [];
     if (!message) return res.status(400).json({ error: 'Missing message.' });
 
-    const reply = await createReply(message, history);
+    // voice: true = vprasanje je bilo izgovorjeno -> kratek govorjen odgovor; false = samo besedilo.
+    // Ce polja ni (starejsa razlicica okna na strani), ostane staro vedenje: zvok ob vsakem odgovoru.
+    const voiceAsked = req.body?.voice === true;
+    const wantAudio = req.body?.voice !== false;
+
+    const reply = await createReply(message, history, voiceAsked);
 
     let audioBase64 = null;
     let ttsProvider = 'none';
-    if (ENABLE_TTS) {
+    let ttsErrors = [];
+    if (ENABLE_TTS && wantAudio) {
       try {
         const speech = await createSpeech(reply);
         audioBase64 = speech.base64;
         ttsProvider = speech.provider;
+        ttsErrors = speech.errors;
       } catch (ttsError) {
         console.error('TTS warning:', ttsError.message);
+        ttsErrors = [shortErr(ttsError)];
       }
     }
 
@@ -200,7 +232,8 @@ app.post('/api/chat', async (req, res) => {
       reply,
       audioBase64,
       audioMimeType: 'audio/mpeg',
-      ttsProvider
+      ttsProvider,
+      ttsErrors
     });
   } catch (error) {
     console.error(error);

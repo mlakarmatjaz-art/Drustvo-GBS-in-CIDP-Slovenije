@@ -200,6 +200,20 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// Preizkus obeh glasov posebej (brez skrivnih podatkov): pove, ali delujeta Edge in ElevenLabs.
+// Najvec en preizkus na minuto, da ga ni mogoce zlorabiti za porabo kreditov.
+let lastTtsCheck = 0;
+app.get('/api/tts-check', async (_req, res) => {
+  if (Date.now() - lastTtsCheck < 60000) return res.status(429).json({ error: 'Pocakajte minuto.' });
+  lastTtsCheck = Date.now();
+  const out = { edge: { voice: TTS_VOICE_SL }, elevenlabs: { keySet: Boolean(ELEVENLABS_API_KEY), voiceId: ELEVENLABS_VOICE_ID } };
+  try { const b = await createSpeechEdge('Preizkus glasu.'); out.edge.ok = Boolean(b); out.edge.bytes = b ? Math.round(b.length * 0.75) : 0; }
+  catch (e) { out.edge.ok = false; out.edge.error = shortErr(e); }
+  try { const b = await createSpeechEleven('Preizkus glasu.'); out.elevenlabs.ok = Boolean(b); out.elevenlabs.bytes = b ? Math.round(b.length * 0.75) : 0; }
+  catch (e) { out.elevenlabs.ok = false; out.elevenlabs.error = shortErr(e); }
+  res.json(out);
+});
+
 app.post('/api/chat', async (req, res) => {
   try {
     const message = String(req.body?.message || '').trim();

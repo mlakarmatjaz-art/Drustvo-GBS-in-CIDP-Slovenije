@@ -37,6 +37,10 @@
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     .gbs-ai-send { background: #0c4a38; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .gbs-ai-close { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+    .gbs-ai-header-actions { display: flex; align-items: center; gap: 8px; }
+    .gbs-ai-stop { background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.5); color: white; border-radius: 14px; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .gbs-ai-stop[hidden] { display: none; }
+    .gbs-ai-message.pending { color: #777; font-style: italic; }
   `;
   document.head.appendChild(style);
 
@@ -47,7 +51,10 @@
     <div class="gbs-ai-panel">
       <header class="gbs-ai-header">
         <strong>Maja - AI pomoč</strong>
-        <button class="gbs-ai-close">&times;</button>
+        <span class="gbs-ai-header-actions">
+          <button class="gbs-ai-stop" hidden aria-label="Ustavi govor">Ustavi govor</button>
+          <button class="gbs-ai-close" aria-label="Zapri pogovor">&times;</button>
+        </span>
       </header>
       <div class="gbs-ai-body">
         <div class="gbs-ai-messages"></div>
@@ -67,6 +74,17 @@
   const input = root.querySelector('.gbs-ai-input');
   const sendBtn = root.querySelector('.gbs-ai-send');
   const micBtn = root.querySelector('.gbs-ai-mic');
+  const stopBtn = root.querySelector('.gbs-ai-stop');
+
+  // Govorjeni odgovor: en sam predvajalnik, ki ga "odklene" klik na mikrofon (zahteva telefonov)
+  const player = new Audio();
+  const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+  function stopSpeech() {
+    player.pause();
+    stopBtn.hidden = true;
+  }
+  player.addEventListener('ended', () => { stopBtn.hidden = true; });
+  player.addEventListener('error', () => { stopBtn.hidden = true; });
 
   // Speech Recognition Setup
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -80,7 +98,7 @@
     recognition.onresult = (event) => {
       const text = event.results[0][0].transcript;
       input.value = text;
-      sendMessage();
+      sendMessage(true);
     };
 
     recognition.onend = () => {
@@ -101,6 +119,9 @@
     if (state.isListening) {
       recognition.stop();
     } else {
+      stopSpeech();
+      player.src = SILENCE;
+      player.play().catch(() => {});
       recognition.start();
       state.isListening = true;
       micBtn.classList.add('active');
@@ -120,6 +141,7 @@
   }
 
   function closeAssistant() {
+    stopSpeech();
     panel.classList.remove('active');
     state.isOpen = false;
   }
@@ -130,34 +152,47 @@
     div.textContent = text;
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
+    return div;
   }
 
-  async function sendMessage() {
+  // viaVoice = vprašanje je bilo izgovorjeno v mikrofon -> Maja odgovori tudi z glasom
+  async function sendMessage(viaVoice = false) {
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
+    stopSpeech();
     addMessage('user', text);
+    const pending = addMessage('assistant', viaVoice ? 'Maja pripravlja govorjeni odgovor …' : 'Maja piše …');
+    pending.classList.add('pending');
 
     try {
       const res = await fetch(`${config.backendUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ message: text, history: state.history.slice(-12), voice: viaVoice === true })
       });
       const data = await res.json();
-      addMessage('assistant', data.reply || 'Oprostite, prišlo je do napake.');
-      if (data.audioBase64) {
-        const audio = new Audio("data:audio/mp3;base64," + data.audioBase64);
-        audio.play();
+      const reply = data.reply || 'Oprostite, prišlo je do napake.';
+      pending.classList.remove('pending');
+      pending.textContent = reply;
+      messages.scrollTop = messages.scrollHeight;
+      if (data.reply) {
+        state.history.push({ role: 'user', content: text }, { role: 'assistant', content: data.reply });
+      }
+      if (viaVoice === true && data.audioBase64) {
+        player.src = `data:${data.audioMimeType || 'audio/mpeg'};base64,${data.audioBase64}`;
+        player.play().then(() => { stopBtn.hidden = false; }).catch(() => {});
       }
     } catch (e) {
-      addMessage('assistant', 'Trenutno nisem dosegljiva. Prosim, poskusite kasneje.');
+      pending.classList.remove('pending');
+      pending.textContent = 'Trenutno nisem dosegljiva. Prosim, poskusite kasneje.';
     }
   }
 
   launcher.addEventListener('click', () => openAssistant());
   closeBtn.addEventListener('click', () => closeAssistant());
   sendBtn.addEventListener('click', () => sendMessage());
+  stopBtn.addEventListener('click', () => stopSpeech());
   micBtn.addEventListener('click', () => toggleMic());
   input.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 

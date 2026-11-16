@@ -97,7 +97,7 @@ function normalizeHistory(history) {
 
 // Dodatek k navodilom, kadar uporabnik sprašuje z glasom in bo odgovor prebran na glas
 const VOICE_STYLE = `GLASOVNI ODGOVOR: Uporabnik je vprašal z glasom in tvoj odgovor bo prebran na glas.
-- Odgovori v dveh do štirih kratkih, toplih povedih, kot bi se pogovarjala s človekom ob sebi.
+- Odgovori v največ treh kratkih, toplih povedih (skupaj do 60 besed), kot bi se pogovarjala s človekom ob sebi.
 - Brez alinej, naslovov, oklepajev, okrajšav in spletnih naslovov. Številke in kratice izpiši z besedo, kjer je to naravno.
 - Če je tema obsežna, povej bistvo in ponudi, da poveš več.`;
 

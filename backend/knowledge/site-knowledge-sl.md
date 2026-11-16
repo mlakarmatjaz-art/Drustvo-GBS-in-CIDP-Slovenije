@@ -21,10 +21,20 @@ Kaj društvo ponuja:
 - možnost članstva (redni in podporni član)
 - možnosti za donacije, sponzorstvo in prostovoljstvo
 
+## Osnovni podatki (stanje november 2026)
+- Polno ime: Društvo nevroloških bolnikov GBS in CIDP Slovenije. V register društev je vpisano od 16. 7. 2026.
+- Društvo ima 40 članov.
+- Društvo ima strokovni svet, v katerem je šest strokovnjakov z URI Soča in UKC Ljubljana. Imena še niso objavljena.
+- Prvo srečanje članov je bilo 19. 9. 2026 v Ljubljani. Datum naslednjega srečanja še ni določen; objavljen bo med novicami na spletni strani.
+- Jeseni 2026 je društvo izvedlo prvo anketo o izkušnjah bolnikov in prejelo 16 odgovorov. Rezultati bodo objavljeni zbirno, brez imen.
+- Društvo se je povezalo z mednarodno fundacijo GBS|CIDP Foundation International.
+
 ## Članstvo
 - Vrsti: redni član in podporni član.
+- Letna članarina je 40 EUR, enaka za redne in podporne člane. Kdor polnega zneska ne zmore, lahko po dogovoru z društvom prispeva manj. To je veljaven podatek; statut zneska ne navaja, ker ga določi upravni odbor.
+- Članarina se plača z nakazilom na račun društva: IBAN SI56 0284 3030 0234 095 (NLB d.d.), prejemnik Društvo nevroloških bolnikov GBS in CIDP Slovenije, Studenec 70, 8293 Studenec. Podatki in koda QR so na spletni strani v razdelku "Podatki za nakazilo".
 - Včlanitev pomeni dostop do skupnostne podpore, informacij in možnost soustvarjanja delovanja društva.
-- Včlani se prek pristopne izjave (na voljo v razdelku "Dokumenti in gradiva" ali "Članstvo" na spletni strani).
+- Včlani se z obrazcem v razdelku "Članstvo" na spletni strani ali z enotno pristopno izjavo (razdelek "Dokumenti in gradiva"). Za včlanitev je potrebna podpisana pristopna izjava.
 - Pri vprašanjih o članstvu uporabnika usmeri tudi na razdelek "Članstvo".
 
 ## Dokumenti in gradiva
@@ -32,8 +42,7 @@ Razdelek vsebuje:
 - statut društva
 - informativni dokument
 - tridelno zloženko (PDF)
-- pristopno izjavo za rednega člana
-- pristopno izjavo za podpornega člana
+- enotno pristopno izjavo za redno in podporno članstvo (PDF in Word)
 - donacijsko pogodbo
 - sponzorsko pogodbo
 Pri vprašanjih o dokumentih uporabnika usmeri tudi na razdelek "Dokumenti in gradiva".
@@ -42,7 +51,7 @@ Pri vprašanjih o dokumentih uporabnika usmeri tudi na razdelek "Dokumenti in gr
 - donacije
 - sponzorstvo
 - prostovoljstvo
-Stik za podporo je mogoč po e-pošti. (Ko bo društvo objavilo uradni TRR za donacije, ga bo navedlo v razdelku "Podpora".)
+Donacijo je mogoče nakazati na račun društva: IBAN SI56 0284 3030 0234 095 (NLB d.d.). Podatki in koda QR so na spletni strani v razdelku "Podatki za nakazilo". Dela dohodnine društvu še ni mogoče nameniti, ker še nima statusa nevladne organizacije v javnem interesu.
 
 ## Kontakt
 - E-pošta: gbs.cidp.skupnost@gmail.com

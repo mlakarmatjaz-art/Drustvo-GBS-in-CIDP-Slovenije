@@ -24,7 +24,7 @@ Kaj društvo ponuja:
 ## Osnovni podatki (stanje november 2026)
 - Polno ime: Društvo nevroloških bolnikov GBS in CIDP Slovenije. V register društev je vpisano od 16. 7. 2026.
 - Društvo ima 40 članov.
-- Društvo ima strokovni svet, v katerem je šest strokovnjakov z URI Soča in UKC Ljubljana. Imena še niso objavljena.
+- Društvo ima strokovni svet: v njem sodelujejo strokovnjaki s svojih področij, zdravniki in terapevti različnih strok, svet pa se še širi. Imena še niso objavljena. Ustanov, kjer so člani sveta zaposleni, ne navajaj, tudi števila članov ne.
 - Prvo srečanje članov je bilo 19. 9. 2026 v Ljubljani. Datum naslednjega srečanja še ni določen; objavljen bo med novicami na spletni strani.
 - Jeseni 2026 je društvo izvedlo prvo anketo o izkušnjah bolnikov in prejelo 16 odgovorov. Rezultati bodo objavljeni zbirno, brez imen.
 - Društvo se je povezalo z mednarodno fundacijo GBS|CIDP Foundation International.

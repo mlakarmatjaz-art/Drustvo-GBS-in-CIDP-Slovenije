@@ -120,7 +120,8 @@ async function createReply(message, history = [], voice = false) {
   const response = await client.responses.create({
     model: OPENAI_MODEL,
     input,
-    tools
+    tools,
+    store: false // pogovorov ne shranjujemo pri OpenAI (glej stran Varstvo osebnih podatkov)
   });
 
   return response.output_text || 'Trenutno nimam odgovora.';
